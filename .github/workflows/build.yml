@@ -1,0 +1,40 @@
+name: Build MusicFree Watch App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @anthropic/aiot-cli || true
+
+      - name: Build RPK
+        run: |
+          echo "Build placeholder - replace with actual AIoT-IDE CLI when available"
+          mkdir -p dist
+          # 如果有CLI工具，取消下面的注释
+          # npx aiot build --project . --output dist/
+
+      - name: Package artifacts
+        run: |
+          mkdir -p dist
+          zip -r dist/musicfree-watch.zip . -x ".git/*" "node_modules/*" ".github/*"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: musicfree-watch
+          path: dist/
+          retention-days: 30
