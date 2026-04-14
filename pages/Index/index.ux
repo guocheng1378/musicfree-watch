@@ -1,12 +1,7 @@
 <template>
   <div class="app">
-    <div class="header">
-      <text class="title">MusicFree</text>
-    </div>
-    <div class="loading" if="{{loading}}">
-      <text class="loading-text">加载中...</text>
-    </div>
-    <div class="list" if="{{!loading}}">
+    <text class="title">MusicFree</text>
+    <div class="list">
       <div class="song-item" for="{{songList}}" onclick="playSong">
         <text class="song-idx">{{$idx+1}}</text>
         <div class="song-info">
@@ -15,51 +10,43 @@
         </div>
       </div>
     </div>
+    <text class="status" if="{{statusText}}">{{statusText}}</text>
   </div>
 </template>
 
 <style>
   .app {
     flex-direction: column;
+    align-items: center;
     width: 100%;
     height: 100%;
     background-color: #0a0a0a;
-  }
-  .header {
-    padding-top: 20px;
-    padding-bottom: 12px;
-    align-items: center;
+    padding-top: 60px;
+    padding-bottom: 60px;
+    padding-left: 50px;
+    padding-right: 50px;
   }
   .title {
-    font-size: 28px;
+    font-size: 24px;
     color: #1db954;
     font-weight: bold;
-  }
-  .loading {
-    flex: 1;
-    align-items: center;
-    justify-content: center;
-  }
-  .loading-text {
-    font-size: 18px;
-    color: #888888;
+    margin-bottom: 12px;
   }
   .list {
     flex-direction: column;
     flex: 1;
-    padding-left: 12px;
-    padding-right: 12px;
+    width: 100%;
   }
   .song-item {
     flex-direction: row;
     align-items: center;
-    padding: 14px 10px;
+    padding: 12px 8px;
     background-color: #1a1a1a;
     border-radius: 10px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .song-idx {
-    width: 28px;
+    width: 24px;
     font-size: 14px;
     color: #555555;
     text-align: center;
@@ -67,16 +54,21 @@
   .song-info {
     flex: 1;
     flex-direction: column;
-    margin-left: 8px;
+    margin-left: 6px;
   }
   .song-name {
-    font-size: 18px;
+    font-size: 16px;
     color: #ffffff;
   }
   .song-artist {
-    font-size: 14px;
+    font-size: 12px;
     color: #888888;
-    margin-top: 3px;
+    margin-top: 2px;
+  }
+  .status {
+    font-size: 12px;
+    color: #666666;
+    margin-top: 8px;
   }
 </style>
 
@@ -87,53 +79,63 @@
   export default {
     data: {
       songList: [],
-      loading: true
+      statusText: ''
     },
     onInit() {
-      this.loadHotSongs()
+      // 先用离线数据确保 UI 能显示
+      this.songList = [
+        { id: 1, name: '晴天', artist: '周杰伦' },
+        { id: 2, name: '起风了', artist: '买辣椒也用券' },
+        { id: 3, name: '稻香', artist: '周杰伦' },
+        { id: 4, name: '孤勇者', artist: '陈奕迅' },
+        { id: 5, name: '七里香', artist: '周杰伦' },
+        { id: 6, name: '漠河舞厅', artist: '柳爽' },
+        { id: 7, name: '反方向的钟', artist: '周杰伦' },
+        { id: 8, name: '错位时空', artist: '艾辰' }
+      ]
+      this.statusText = '列表已加载'
+      // 然后尝试联网
+      this.tryLoadNetwork()
     },
-    loadHotSongs() {
-      this.loading = true
-      const url = 'https://music.163.com/api/playlist/detail?id=3778678'
-      fetch.fetch({
-        url: url,
-        method: 'GET',
-        header: {
-          'Referer': 'https://music.163.com/',
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 13)'
-        },
-        success: (resp) => {
-          this.loading = false
-          try {
-            const data = JSON.parse(resp.data)
-            if (data.result && data.result.tracks) {
-              this.songList = data.result.tracks.slice(0, 30).map(s => ({
-                id: s.id,
-                name: s.name,
-                artist: s.artists.map(a => a.name).join('/'),
-                album: s.album ? s.album.name : '',
-                duration: Math.floor(s.duration / 1000)
-              }))
+    tryLoadNetwork() {
+      this.statusText = '正在联网...'
+      try {
+        fetch.fetch({
+          url: 'https://music.163.com/api/playlist/detail?id=3778678',
+          method: 'GET',
+          header: {
+            'Referer': 'https://music.163.com/',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          success: (resp) => {
+            try {
+              const data = JSON.parse(resp.data)
+              if (data.result && data.result.tracks) {
+                this.songList = data.result.tracks.slice(0, 20).map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  artist: s.artists.map(a => a.name).join('/')
+                }))
+                this.statusText = '已更新 ' + this.songList.length + ' 首'
+              }
+            } catch (e) {
+              this.statusText = '解析失败'
             }
-          } catch (e) {
-            this.songList = []
+          },
+          fail: (err) => {
+            this.statusText = '网络失败: ' + JSON.stringify(err)
           }
-        },
-        fail: () => {
-          this.loading = false
-          this.songList = []
-        }
-      })
+        })
+      } catch (e) {
+        this.statusText = 'fetch不可用: ' + e.message
+      }
     },
     playSong(evt) {
-      const idx = evt.index
-      const song = this.songList[idx]
+      const song = this.songList[evt.index]
       if (!song) return
       router.push({
         uri: '/Player',
-        params: {
-          songData: JSON.stringify(song)
-        }
+        params: { songData: JSON.stringify(song) }
       })
     }
   }
