@@ -15,7 +15,7 @@
     </div>
     <div class="recent" if="{{recentList.length > 0}}">
       <text class="section-title">最近播放</text>
-      <div class="song-item" for="{{recentList}}" onclick="playFromRecent({{$idx}})">
+      <div class="song-item" for="{{recentList}}" @click="playFromRecent($idx)">
         <div class="song-info">
           <text class="song-name">{{$item.title}}</text>
           <text class="song-artist">{{$item.artist}}</text>

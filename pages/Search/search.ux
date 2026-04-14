@@ -5,7 +5,7 @@
         <text class="back-icon">←</text>
       </div>
       <input class="search-input" type="text" placeholder="搜索歌曲/歌手"
-             value="{{keyword}}" onchange="onKeywordChange" onenter="doSearch"/>
+             value="{{keyword}}" onchange="onKeywordChange" @click="doSearch"/>
       <div class="search-btn" onclick="doSearch">
         <text class="search-icon">🔍</text>
       </div>
@@ -16,9 +16,9 @@
     </div>
 
     <div class="results" if="{{!loading && results.length > 0}}">
-      <div class="song-item" for="{{results}}" onclick="playSong({{$idx}})">
+      <div class="song-item" for="{{results}}" @click="playSong($idx)">
         <div class="song-index">
-          <text class="index-text">{{$idx + 1}}</text>
+          <text class="index-text">{{$idx+1}}</text>
         </div>
         <div class="song-info">
           <text class="song-name">{{$item.title}}</text>

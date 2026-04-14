@@ -1,4 +1,4 @@
-name: Build MusicFree Watch App
+name: Build MusicFree Watch RPK
 
 on:
   push:
@@ -14,27 +14,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
 
-      - name: Install dependencies
+      - name: Install aiot-toolkit
+        run: npm install -g aiot-toolkit
+
+      - name: Prepare project structure
         run: |
-          npm install -g @anthropic/aiot-cli || true
+          # aiot-toolkit requires source files in src/ directory
+          mkdir -p src
+          cp -r app.ux common pages manifest.json src/
 
       - name: Build RPK
         run: |
-          echo "Build placeholder - replace with actual AIoT-IDE CLI when available"
-          mkdir -p dist
-          # 如果有CLI工具，取消下面的注释
-          # npx aiot build --project . --output dist/
+          aiot build --complete-feature
 
-      - name: Package artifacts
-        run: |
-          mkdir -p dist
-          zip -r dist/musicfree-watch.zip . -x ".git/*" "node_modules/*" ".github/*"
-
-      - name: Upload artifact
+      - name: Upload RPK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: musicfree-watch
-          path: dist/
+          name: musicfree-watch-rpk
+          path: dist/*.rpk
           retention-days: 30
