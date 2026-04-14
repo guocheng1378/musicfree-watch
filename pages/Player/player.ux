@@ -52,9 +52,10 @@
     font-size: 26px;
   }
   .status {
-    font-size: 12px;
+    font-size: 11px;
     color: #555555;
     margin-top: 12px;
+    text-align: center;
   }
   .back-row {
     margin-top: 10px;
@@ -68,7 +69,6 @@
 <script>
   import router from '@system.router'
   import audio from '@system.audio'
-  import fetch from '@system.fetch'
 
   export default {
     data: {
@@ -86,18 +86,19 @@
         this.isPlaying = false
         this.statusText = '播放出错'
       }
-      // 尝试获取传入的歌曲数据
       try {
-        const params = this.$page.params || {}
+        var params = this.$page.params || {}
         if (params.songData) {
-          const song = JSON.parse(params.songData)
+          var song = JSON.parse(params.songData)
           this.songName = song.name
           this.songArtist = song.artist
           this.songId = song.id
           this.loadAndPlay(song)
+        } else {
+          this.statusText = '无歌曲数据'
         }
       } catch (e) {
-        this.statusText = '参数错误'
+        this.statusText = '参数错误: ' + e.message
       }
     },
     loadAndPlay(song) {
@@ -105,35 +106,35 @@
         this.statusText = '无歌曲ID'
         return
       }
-      this.statusText = '获取链接...'
+      this.statusText = '获取播放链接...'
       try {
+        var fetch = require('@system.fetch')
         fetch.fetch({
-          url: 'https://music.163.com/api/song/enhance/player/url?id=' + song.id + '&ids=%5B' + song.id + '%5D&br=128000',
+          url: 'http://music.163.com/api/song/enhance/player/url?id=' + song.id + '&ids=%5B' + song.id + '%5D&br=128000',
           method: 'GET',
           header: {
-            'Referer': 'https://music.163.com/',
-            'User-Agent': 'Mozilla/5.0'
+            'Referer': 'http://music.163.com/'
           },
           success: (resp) => {
             try {
-              const data = JSON.parse(resp.data)
+              var data = JSON.parse(resp.data || '{}')
               if (data.data && data.data[0] && data.data[0].url) {
                 audio.src = data.data[0].url
                 audio.play()
                 this.statusText = '播放中'
               } else {
-                this.statusText = '无播放链接'
+                this.statusText = '无播放链接(可能需要VIP)'
               }
             } catch (e) {
               this.statusText = '解析失败'
             }
           },
-          fail: (err) => {
-            this.statusText = '网络失败'
+          fail: function(err) {
+            this.statusText = '网络获取失败'
           }
         })
       } catch (e) {
-        this.statusText = 'fetch不可用'
+        this.statusText = 'fetch不可用: ' + e.message
       }
     },
     togglePlay() {

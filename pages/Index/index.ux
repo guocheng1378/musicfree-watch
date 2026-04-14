@@ -10,7 +10,7 @@
         </div>
       </div>
     </div>
-    <text class="status" if="{{statusText}}">{{statusText}}</text>
+    <text class="status">{{statusText}}</text>
   </div>
 </template>
 
@@ -66,72 +66,87 @@
     margin-top: 2px;
   }
   .status {
-    font-size: 12px;
+    font-size: 11px;
     color: #666666;
     margin-top: 8px;
+    text-align: center;
   }
 </style>
 
 <script>
   import router from '@system.router'
-  import fetch from '@system.fetch'
+
+  // 离线歌曲库，保证没网也能用
+  var OFFLINE_SONGS = [
+    { id: 1978422849, name: '晴天', artist: '周杰伦' },
+    { id: 1407551413, name: '起风了', artist: '买辣椒也用券' },
+    { id: 185809, name: '稻香', artist: '周杰伦' },
+    { id: 1968205910, name: '孤勇者', artist: '陈奕迅' },
+    { id: 185813, name: '七里香', artist: '周杰伦' },
+    { id: 1413863166, name: '漠河舞厅', artist: '柳爽' },
+    { id: 185878, name: '反方向的钟', artist: '周杰伦' },
+    { id: 1860618064, name: '错位时空', artist: '艾辰' },
+    { id: 185887, name: '夜曲', artist: '周杰伦' },
+    { id: 1472484891, name: '白月光与朱砂痣', artist: '大籽' },
+    { id: 185867, name: '简单爱', artist: '周杰伦' },
+    { id: 1816004134, name: '踏山河', artist: '是七叔呢' },
+    { id: 185855, name: '告白气球', artist: '周杰伦' },
+    { id: 1440790466, name: '半生雪', artist: '是七叔呢' },
+    { id: 185848, name: '青花瓷', artist: '周杰伦' }
+  ]
 
   export default {
     data: {
       songList: [],
-      statusText: ''
+      statusText: '加载中...'
     },
     onInit() {
-      // 先用离线数据确保 UI 能显示
-      this.songList = [
-        { id: 1, name: '晴天', artist: '周杰伦' },
-        { id: 2, name: '起风了', artist: '买辣椒也用券' },
-        { id: 3, name: '稻香', artist: '周杰伦' },
-        { id: 4, name: '孤勇者', artist: '陈奕迅' },
-        { id: 5, name: '七里香', artist: '周杰伦' },
-        { id: 6, name: '漠河舞厅', artist: '柳爽' },
-        { id: 7, name: '反方向的钟', artist: '周杰伦' },
-        { id: 8, name: '错位时空', artist: '艾辰' }
-      ]
-      this.statusText = '列表已加载'
-      // 然后尝试联网
-      this.tryLoadNetwork()
+      // 先显示离线数据
+      this.songList = OFFLINE_SONGS
+      this.statusText = '离线歌单 · ' + OFFLINE_SONGS.length + '首'
+      // 尝试联网更新
+      this.tryNetwork()
     },
-    tryLoadNetwork() {
-      this.statusText = '正在联网...'
+    tryNetwork() {
+      // 检测 fetch 是否可用
       try {
+        var fetch = require('@system.fetch')
+        this.statusText = '正在联网...'
         fetch.fetch({
-          url: 'https://music.163.com/api/playlist/detail?id=3778678',
+          url: 'http://music.163.com/api/playlist/detail?id=3778678',
           method: 'GET',
           header: {
-            'Referer': 'https://music.163.com/',
-            'User-Agent': 'Mozilla/5.0'
+            'Referer': 'http://music.163.com/'
           },
           success: (resp) => {
             try {
-              const data = JSON.parse(resp.data)
-              if (data.result && data.result.tracks) {
-                this.songList = data.result.tracks.slice(0, 20).map(s => ({
-                  id: s.id,
-                  name: s.name,
-                  artist: s.artists.map(a => a.name).join('/')
-                }))
-                this.statusText = '已更新 ' + this.songList.length + ' 首'
+              var data = JSON.parse(resp.data || '{}')
+              if (data.result && data.result.tracks && data.result.tracks.length > 0) {
+                this.songList = data.result.tracks.slice(0, 20).map(function(s) {
+                  return {
+                    id: s.id,
+                    name: s.name,
+                    artist: s.artists.map(function(a) { return a.name }).join('/')
+                  }
+                })
+                this.statusText = '在线 · ' + this.songList.length + '首'
+              } else {
+                this.statusText = 'API无数据 · 用离线歌单'
               }
             } catch (e) {
-              this.statusText = '解析失败'
+              this.statusText = '解析失败 · 用离线歌单'
             }
           },
-          fail: (err) => {
-            this.statusText = '网络失败: ' + JSON.stringify(err)
+          fail: function(err) {
+            this.statusText = '网络不可用 · 用离线歌单'
           }
         })
       } catch (e) {
-        this.statusText = 'fetch不可用: ' + e.message
+        this.statusText = 'fetch不可用 · 离线模式'
       }
     },
     playSong(evt) {
-      const song = this.songList[evt.index]
+      var song = this.songList[evt.index]
       if (!song) return
       router.push({
         uri: '/Player',
