@@ -4,10 +4,8 @@
       <div class="back-btn" onclick="goBack">
         <text class="back-icon">←</text>
       </div>
-      <div class="search-input-wrap">
-        <input class="search-input" type="text" placeholder="搜索歌曲/歌手"
-               value="{{keyword}}" onchange="onKeywordChange" onenter="doSearch"/>
-      </div>
+      <input class="search-input" type="text" placeholder="搜索歌曲/歌手"
+             value="{{keyword}}" onchange="onKeywordChange" onenter="doSearch"/>
       <div class="search-btn" onclick="doSearch">
         <text class="search-icon">🔍</text>
       </div>
@@ -18,30 +16,19 @@
     </div>
 
     <div class="results" if="{{!loading && results.length > 0}}">
-      <div class="song-item" for="{{results}}" onclick="playSong($item, $idx)">
+      <div class="song-item" for="{{results}}" onclick="playSong({{$idx}})">
         <div class="song-index">
           <text class="index-text">{{$idx + 1}}</text>
         </div>
         <div class="song-info">
           <text class="song-name">{{$item.title}}</text>
-          <text class="song-detail">{{$item.artist}} - {{$item.album || '未知专辑'}}</text>
+          <text class="song-detail">{{$item.artist}} - {{$item.album}}</text>
         </div>
-        <text class="source-badge">{{$item.source || 'wy'}}</text>
       </div>
     </div>
 
     <div class="empty" if="{{!loading && searched && results.length === 0}}">
       <text class="empty-text">没有找到相关结果</text>
-    </div>
-
-    <div class="pagination" if="{{!loading && results.length > 0}}">
-      <div class="page-btn" onclick="prevPage" if="{{page > 1}}">
-        <text class="page-text">上一页</text>
-      </div>
-      <text class="page-info">第{{page}}页</text>
-      <div class="page-btn" onclick="nextPage">
-        <text class="page-text">下一页</text>
-      </div>
     </div>
   </div>
 </template>
@@ -69,23 +56,17 @@
     font-size: 24px;
     color: #ffffff;
   }
-  .search-input-wrap {
+  .search-input {
     flex: 1;
     height: 40px;
     background-color: #1a1a2e;
     border-radius: 20px;
-    padding: 0 16px;
-    margin: 0 8px;
-    justify-content: center;
-  }
-  .search-input {
-    width: 100%;
-    height: 40px;
-    font-size: 16px;
     color: #ffffff;
+    font-size: 16px;
+    padding-left: 16px;
+    padding-right: 16px;
     placeholder-color: #666666;
-    background-color: transparent;
-    border-width: 0;
+    margin: 0 8px;
   }
   .search-btn {
     width: 40px;
@@ -138,13 +119,6 @@
     color: #888888;
     margin-top: 3px;
   }
-  .source-badge {
-    font-size: 11px;
-    color: #1db954;
-    background-color: #1db95420;
-    padding: 3px 8px;
-    border-radius: 8px;
-  }
   .empty {
     flex: 1;
     align-items: center;
@@ -154,33 +128,11 @@
     font-size: 16px;
     color: #666666;
   }
-  .pagination {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 0;
-  }
-  .page-btn {
-    background-color: #1a1a2e;
-    padding: 8px 16px;
-    border-radius: 12px;
-  }
-  .page-text {
-    font-size: 14px;
-    color: #1db954;
-  }
-  .page-info {
-    font-size: 14px;
-    color: #888888;
-    margin: 0 16px;
-  }
 </style>
 
 <script>
   import router from '@system.router'
-  import request from '@system.request'
-
-  const API_BASE = 'http://192.168.1.100:3456'
+  import fetch from '@system.fetch'
 
   export default {
     data: {
@@ -188,7 +140,7 @@
       results: [],
       loading: false,
       searched: false,
-      page: 1,
+      page: 1
     },
 
     goBack() {
@@ -205,74 +157,55 @@
       this.fetchResults()
     },
 
-    prevPage() {
-      if (this.page > 1) {
-        this.page--
-        this.fetchResults()
-      }
-    },
-
-    nextPage() {
-      this.page++
-      this.fetchResults()
-    },
-
     fetchResults() {
       this.loading = true
       this.searched = true
 
-      request.request({
-        url: `${API_BASE}/api/search?keyword=${encodeURIComponent(this.keyword)}&page=${this.page}&source=wy`,
+      const url = 'https://music.163.com/api/search/get/web?csrf_token=&s=' +
+        encodeURIComponent(this.keyword) +
+        '&type=1&offset=' + ((this.page - 1) * 20) +
+        '&total=true&limit=20'
+
+      fetch.fetch({
+        url: url,
         method: 'GET',
-        success: (data) => {
+        header: {
+          'Referer': 'https://music.163.com/',
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 13)'
+        },
+        success: (resp) => {
           this.loading = false
           try {
-            const result = JSON.parse(data.data)
-            this.results = (result.data || []).map(item => ({
-              id: item.id,
-              title: item.title || item.name,
-              artist: item.artist || (item.artists ? item.artists.join('/') : '未知'),
-              album: item.album,
-              source: item.source || 'wy',
-              cover: item.cover || item.artwork,
-              url: null
-            }))
+            const data = JSON.parse(resp.data)
+            if (data.result && data.result.songs) {
+              this.results = data.result.songs.map(s => ({
+                id: s.id,
+                title: s.name,
+                artist: s.artists.map(a => a.name).join('/'),
+                album: s.album ? s.album.name : '',
+                duration: Math.floor(s.duration / 1000),
+                cover: s.album && s.album.artist ? s.album.artist.img1v1Url : ''
+              }))
+            } else {
+              this.results = []
+            }
           } catch (e) {
-            console.error('解析搜索结果失败:', e)
             this.results = []
           }
         },
-        fail: (data, code) => {
+        fail: () => {
           this.loading = false
           this.results = []
-          console.error('搜索请求失败:', code)
         }
       })
     },
 
-    playSong(song, idx) {
-      // 获取播放地址并跳转播放
-      this.loading = true
-      request.request({
-        url: `${API_BASE}/api/media?id=${song.id}&source=${song.source || 'wy'}`,
-        method: 'GET',
-        success: (data) => {
-          this.loading = false
-          try {
-            const result = JSON.parse(data.data)
-            song.url = result.url
-            // 通知主页添加到播放列表并播放
-            this.$parent.$emit('play-song', song)
-            router.replace({
-              uri: '/Player'
-            })
-          } catch (e) {
-            console.error('获取播放地址失败:', e)
-          }
-        },
-        fail: (data, code) => {
-          this.loading = false
-          console.error('获取播放地址失败:', code)
+    playSong(idx) {
+      const song = this.results[idx]
+      router.push({
+        uri: '/Player',
+        params: {
+          songData: JSON.stringify(song)
         }
       })
     }
