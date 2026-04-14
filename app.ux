@@ -1,0 +1,12 @@
+<template>
+  <div>
+    <router-page />
+  </div>
+</template>
+
+<script>
+  export default {
+    data: {},
+    onCreate() {}
+  }
+</script>
