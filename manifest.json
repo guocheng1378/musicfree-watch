@@ -16,6 +16,7 @@
   "features": [
     { "name": "system.router" },
     { "name": "system.fetch" },
+    { "name": "system.request" },
     { "name": "system.audio" },
     { "name": "system.storage" }
   ],

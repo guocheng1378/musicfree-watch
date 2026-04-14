@@ -35,9 +35,7 @@
     margin-top: 4px;
     text-align: center;
   }
-  .controls {
-    margin-top: 16px;
-  }
+  .controls { margin-top: 16px; }
   .ctrl-btn {
     width: 50px;
     height: 50px;
@@ -46,9 +44,7 @@
     align-items: center;
     justify-content: center;
   }
-  .ctrl-icon {
-    font-size: 22px;
-  }
+  .ctrl-icon { font-size: 22px; }
   .status {
     font-size: 10px;
     color: #555555;
@@ -64,7 +60,7 @@
 <script>
   import router from '@system.router'
   import audio from '@system.audio'
-  import fetch from '@system.fetch'
+  import request from '@system.request'
 
   export default {
     data: {
@@ -97,20 +93,22 @@
     },
     loadAndPlay(song) {
       if (!song.id) return
-      this.statusText = '获取中...'
+      this.statusText = '获取链接...'
+      const url = 'https://music.163.com/api/song/enhance/player/url?id=' + song.id + '&ids=%5B' + song.id + '%5D&br=128000'
       try {
-        fetch.fetch({
-          url: 'https://music.163.com/api/song/enhance/player/url?id=' + song.id + '&ids=%5B' + song.id + '%5D&br=128000',
+        request.request({
+          url: url,
           method: 'GET',
           header: {
             'Referer': 'https://music.163.com/',
             'User-Agent': 'Mozilla/5.0'
           },
-          success: (resp) => {
+          success: (data) => {
+            this.statusText = 'request成功'
             try {
-              const data = JSON.parse(resp.data)
-              if (data.data && data.data[0] && data.data[0].url) {
-                audio.src = data.data[0].url
+              const json = typeof data === 'string' ? JSON.parse(data) : data
+              if (json.data && json.data[0] && json.data[0].url) {
+                audio.src = json.data[0].url
                 audio.play()
                 this.statusText = '播放中'
               } else {
@@ -120,12 +118,12 @@
               this.statusText = '解析失败'
             }
           },
-          fail: () => {
-            this.statusText = '网络失败'
+          fail: (data, code) => {
+            this.statusText = '失败:' + code
           }
         })
       } catch (e) {
-        this.statusText = 'fetch不可用'
+        this.statusText = 'request不可用'
       }
     },
     togglePlay() {

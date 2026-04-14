@@ -1,23 +1,22 @@
 <template>
   <div class="app">
     <text class="title">MusicFree</text>
-    <div class="list">
+    <text class="status">{{statusText}}</text>
+    <div class="list" if="{{songList.length > 0}}">
       <div class="song-item" for="{{songList}}" onclick="playSong">
-        <text class="song-idx">{{$idx+1}}</text>
-        <div class="song-info">
-          <text class="song-name">{{$item.name}}</text>
-          <text class="song-artist">{{$item.artist}}</text>
+        <text class="idx">{{$idx+1}}</text>
+        <div class="info">
+          <text class="name">{{$item.name}}</text>
+          <text class="artist">{{$item.artist}}</text>
         </div>
       </div>
     </div>
-    <text class="status">{{statusText}}</text>
   </div>
 </template>
 
 <style>
   .app {
     flex-direction: column;
-    align-items: center;
     width: 100%;
     height: 100%;
     background-color: #0a0a0a;
@@ -27,10 +26,17 @@
     padding-right: 80px;
   }
   .title {
-    font-size: 22px;
+    font-size: 20px;
     color: #1db954;
     font-weight: bold;
-    margin-bottom: 10px;
+    text-align: center;
+  }
+  .status {
+    font-size: 11px;
+    color: #888888;
+    text-align: center;
+    margin-top: 4px;
+    margin-bottom: 6px;
   }
   .list {
     flex-direction: column;
@@ -40,64 +46,83 @@
   .song-item {
     flex-direction: row;
     align-items: center;
-    padding: 10px 6px;
+    padding: 8px 4px;
     background-color: #1a1a1a;
-    border-radius: 8px;
-    margin-bottom: 3px;
+    border-radius: 6px;
+    margin-bottom: 2px;
   }
-  .song-idx {
-    width: 20px;
-    font-size: 12px;
+  .idx {
+    width: 18px;
+    font-size: 11px;
     color: #555555;
     text-align: center;
   }
-  .song-info {
+  .info {
     flex: 1;
     flex-direction: column;
     margin-left: 4px;
   }
-  .song-name {
-    font-size: 14px;
+  .name {
+    font-size: 13px;
     color: #ffffff;
   }
-  .song-artist {
-    font-size: 11px;
-    color: #888888;
-    margin-top: 1px;
-  }
-  .status {
+  .artist {
     font-size: 10px;
-    color: #555555;
-    margin-top: 4px;
+    color: #888888;
   }
 </style>
 
 <script>
   import router from '@system.router'
-  import fetch from '@system.fetch'
+  import request from '@system.request'
 
   export default {
     data: {
       songList: [],
-      statusText: '初始化'
+      statusText: '加载中...'
     },
     onInit() {
-      this.songList = [
-        { id: 1, name: '晴天', artist: '周杰伦' },
-        { id: 2, name: '起风了', artist: '买辣椒也用券' },
-        { id: 3, name: '稻香', artist: '周杰伦' },
-        { id: 4, name: '孤勇者', artist: '陈奕迅' },
-        { id: 5, name: '七里香', artist: '周杰伦' },
-        { id: 6, name: '漠河舞厅', artist: '柳爽' },
-        { id: 7, name: '反方向的钟', artist: '周杰伦' },
-        { id: 8, name: '错位时空', artist: '艾辰' }
-      ]
-      this.statusText = '就绪'
-      this.tryLoadNetwork()
+      this.loadSongs()
     },
-    tryLoadNetwork() {
-      this.statusText = '联网中...'
+    loadSongs() {
+      this.statusText = '请求中...'
       try {
+        request.request({
+          url: 'https://music.163.com/api/playlist/detail?id=3778678',
+          method: 'GET',
+          header: {
+            'Referer': 'https://music.163.com/',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          success: (data, code) => {
+            this.statusText = '成功 code=' + code
+            try {
+              const json = typeof data === 'string' ? JSON.parse(data) : data
+              if (json.result && json.result.tracks) {
+                this.songList = json.result.tracks.slice(0, 20).map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  artist: s.artists.map(a => a.name).join('/')
+                }))
+                this.statusText = this.songList.length + '首'
+              }
+            } catch (e) {
+              this.statusText = '解析失败: ' + e.message
+            }
+          },
+          fail: (data, code) => {
+            this.statusText = '失败 code=' + code
+          }
+        })
+      } catch (e) {
+        // system.request 不可用，试 fetch
+        this.statusText = 'request不可用，试fetch'
+        this.tryFetch()
+      }
+    },
+    tryFetch() {
+      try {
+        const fetch = require('@system.fetch')
         fetch.fetch({
           url: 'https://music.163.com/api/playlist/detail?id=3778678',
           method: 'GET',
@@ -106,6 +131,7 @@
             'User-Agent': 'Mozilla/5.0'
           },
           success: (resp) => {
+            this.statusText = 'fetch成功'
             try {
               const data = JSON.parse(resp.data)
               if (data.result && data.result.tracks) {
@@ -114,18 +140,18 @@
                   name: s.name,
                   artist: s.artists.map(a => a.name).join('/')
                 }))
-                this.statusText = '在线 ' + this.songList.length + '首'
+                this.statusText = this.songList.length + '首'
               }
             } catch (e) {
-              this.statusText = '用离线'
+              this.statusText = 'fetch解析失败'
             }
           },
           fail: () => {
-            this.statusText = '离线模式'
+            this.statusText = 'fetch也失败'
           }
         })
       } catch (e) {
-        this.statusText = 'fetch不可用'
+        this.statusText = '全部不可用: ' + e.message
       }
     },
     playSong(evt) {
