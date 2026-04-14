@@ -1,11 +1,5 @@
 <template>
   <div class="app">
-    <div class="cover-area">
-      <image class="cover" src="{{coverUrl}}" if="{{coverUrl}}"/>
-      <div class="cover-placeholder" if="{{!coverUrl}}">
-        <text class="cover-icon">🎵</text>
-      </div>
-    </div>
     <div class="info">
       <text class="title">{{songTitle || '未在播放'}}</text>
       <text class="artist">{{songArtist || '---'}}</text>
@@ -13,19 +7,9 @@
     <div class="progress-bar">
       <div class="progress-fill" style="width: {{progress}}px"></div>
     </div>
-    <div class="time-row">
-      <text class="time">{{currentTime}}</text>
-      <text class="time">{{totalTime}}</text>
-    </div>
     <div class="controls">
-      <div class="ctrl-btn" onclick="prevSong">
-        <text class="ctrl-icon">⏮</text>
-      </div>
-      <div class="ctrl-btn play-btn" onclick="togglePlay">
-        <text class="ctrl-icon play-icon">{{isPlaying ? '⏸' : '▶'}}</text>
-      </div>
-      <div class="ctrl-btn" onclick="nextSong">
-        <text class="ctrl-icon">⏭</text>
+      <div class="ctrl-btn" onclick="togglePlay">
+        <text class="ctrl-icon">{{isPlaying ? '⏸' : '▶'}}</text>
       </div>
     </div>
     <div class="back-row" onclick="goBack">
@@ -42,95 +26,58 @@
     height: 100%;
     background-color: #0a0a0a;
   }
-  .cover-area {
-    margin-top: 20px;
-    align-items: center;
-    justify-content: center;
-  }
-  .cover {
-    width: 180px;
-    height: 180px;
-    border-radius: 90px;
-  }
-  .cover-placeholder {
-    width: 180px;
-    height: 180px;
-    border-radius: 90px;
-    background-color: #1a1a1a;
-    align-items: center;
-    justify-content: center;
-  }
-  .cover-icon {
-    font-size: 60px;
-  }
   .info {
     align-items: center;
-    margin-top: 16px;
+    margin-top: 40px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   .title {
-    font-size: 24px;
+    font-size: 22px;
     color: #ffffff;
     font-weight: bold;
+    text-align: center;
   }
   .artist {
-    font-size: 18px;
+    font-size: 16px;
     color: #888888;
-    margin-top: 4px;
+    margin-top: 6px;
+    text-align: center;
   }
   .progress-bar {
-    width: 380px;
-    height: 6px;
+    width: 300px;
+    height: 4px;
     background-color: #333333;
-    border-radius: 3px;
-    margin-top: 20px;
+    border-radius: 2px;
+    margin-top: 30px;
   }
   .progress-fill {
-    height: 6px;
+    height: 4px;
     background-color: #1db954;
-    border-radius: 3px;
-  }
-  .time-row {
-    flex-direction: row;
-    width: 380px;
-    justify-content: space-between;
-    margin-top: 6px;
-  }
-  .time {
-    font-size: 16px;
-    color: #666666;
+    border-radius: 2px;
   }
   .controls {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    margin-top: 16px;
+    margin-top: 24px;
   }
   .ctrl-btn {
     width: 70px;
     height: 70px;
     border-radius: 35px;
-    background-color: #1a1a1a;
+    background-color: #1db954;
     align-items: center;
     justify-content: center;
-    margin: 0 12px;
-  }
-  .play-btn {
-    width: 90px;
-    height: 90px;
-    border-radius: 45px;
-    background-color: #1db954;
   }
   .ctrl-icon {
-    font-size: 28px;
-  }
-  .play-icon {
-    font-size: 36px;
+    font-size: 30px;
   }
   .back-row {
-    margin-top: 12px;
+    margin-top: 20px;
   }
   .back-text {
-    font-size: 20px;
+    font-size: 18px;
     color: #555555;
   }
 </style>
@@ -145,12 +92,9 @@
     data: {
       songTitle: '',
       songArtist: '',
-      coverUrl: '',
       songId: 0,
       isPlaying: false,
       progress: 0,
-      currentTimeStr: '0:00',
-      totalTimeStr: '0:00',
       currentSong: null,
       timer: null
     },
@@ -167,34 +111,24 @@
     },
 
     initAudio() {
-      audio.onplay = () => {
-        this.isPlaying = true
-      }
-      audio.onpause = () => {
-        this.isPlaying = false
-      }
+      audio.onplay = () => { this.isPlaying = true }
+      audio.onpause = () => { this.isPlaying = false }
       audio.onended = () => {
         this.isPlaying = false
         this.progress = 0
       }
-      audio.onerror = () => {
-        this.isPlaying = false
-      }
+      audio.onerror = () => { this.isPlaying = false }
     },
 
     playSong(song) {
       if (!song || !song.id) return
-
-      this.songTitle = song.title
+      this.songTitle = song.name
       this.songArtist = song.artist
       this.songId = song.id
-      this.coverUrl = song.cover || ''
       this.currentSong = song
-      this.totalTimeStr = this.formatTime(song.duration || 0)
 
-      // 获取播放地址
       const url = 'https://music.163.com/api/song/enhance/player/url?id=' +
-        song.id + '&ids=%5B' + song.id + '%5D&br=320000'
+        song.id + '&ids=%5B' + song.id + '%5D&br=128000'
 
       fetch.fetch({
         url: url,
@@ -225,52 +159,13 @@
       }
     },
 
-    prevSong() {
-      // 从最近播放获取上一首
-      storage.get({
-        key: 'recent_play',
-        success: (data) => {
-          try {
-            const list = JSON.parse(data || '[]')
-            const idx = list.findIndex(s => s.id === this.songId)
-            if (idx >= 0 && idx < list.length - 1) {
-              this.playSong(list[idx + 1])
-            }
-          } catch (e) {}
-        }
-      })
-    },
-
-    nextSong() {
-      storage.get({
-        key: 'recent_play',
-        success: (data) => {
-          try {
-            const list = JSON.parse(data || '[]')
-            const idx = list.findIndex(s => s.id === this.songId)
-            if (idx >= 0 && idx > 0) {
-              this.playSong(list[idx - 1])
-            }
-          } catch (e) {}
-        }
-      })
-    },
-
     startProgress() {
       if (this.timer) clearInterval(this.timer)
       this.timer = setInterval(() => {
         if (audio.currentTime && audio.duration && audio.duration > 0) {
-          this.progress = Math.floor((audio.currentTime / audio.duration) * 380)
-          this.currentTimeStr = this.formatTime(Math.floor(audio.currentTime))
+          this.progress = Math.floor((audio.currentTime / audio.duration) * 300)
         }
       }, 1000)
-    },
-
-    formatTime(seconds) {
-      if (!seconds || isNaN(seconds)) return '0:00'
-      const m = Math.floor(seconds / 60)
-      const s = Math.floor(seconds % 60)
-      return m + ':' + (s < 10 ? '0' : '') + s
     },
 
     saveToRecent(song) {
@@ -280,8 +175,8 @@
           let list = []
           try { list = JSON.parse(data || '[]') } catch (e) {}
           list = list.filter(s => s.id !== song.id)
-          list.unshift(song)
-          list = list.slice(0, 20)
+          list.unshift({ id: song.id, name: song.name, artist: song.artist })
+          list = list.slice(0, 10)
           storage.set({
             key: 'recent_play',
             value: JSON.stringify(list)

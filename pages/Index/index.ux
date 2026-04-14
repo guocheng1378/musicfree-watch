@@ -3,27 +3,17 @@
     <div class="header">
       <text class="title">MusicFree</text>
     </div>
-    <div class="menu">
-      <div class="menu-item" onclick="gotoSearch">
-        <text class="menu-icon">🔍</text>
-        <text class="menu-text">搜索音乐</text>
-      </div>
-      <div class="menu-item" onclick="gotoPlayer">
-        <text class="menu-icon">🎵</text>
-        <text class="menu-text">正在播放</text>
-      </div>
+    <div class="loading" if="{{loading}}">
+      <text class="loading-text">加载中...</text>
     </div>
-    <div class="recent" if="{{recentList.length > 0}}">
-      <text class="section-title">最近播放</text>
-      <div class="song-item" for="{{recentList}}" onclick="playFromRecent($idx)">
+    <div class="list" if="{{!loading}}">
+      <div class="song-item" for="{{songList}}" onclick="playSong">
+        <text class="song-idx">{{$idx+1}}</text>
         <div class="song-info">
-          <text class="song-name">{{$item.title}}</text>
+          <text class="song-name">{{$item.name}}</text>
           <text class="song-artist">{{$item.artist}}</text>
         </div>
       </div>
-    </div>
-    <div class="empty" if="{{recentList.length === 0}}">
-      <text class="empty-text">点击搜索开始听歌</text>
     </div>
   </div>
 </template>
@@ -31,122 +21,114 @@
 <style>
   .app {
     flex-direction: column;
-    align-items: center;
     width: 100%;
     height: 100%;
     background-color: #0a0a0a;
   }
   .header {
-    padding-top: 30px;
-    padding-bottom: 20px;
+    padding-top: 20px;
+    padding-bottom: 12px;
     align-items: center;
   }
   .title {
-    font-size: 36px;
+    font-size: 28px;
     color: #1db954;
     font-weight: bold;
   }
-  .menu {
-    flex-direction: row;
-    justify-content: center;
-    margin-top: 20px;
-  }
-  .menu-item {
-    width: 180px;
-    height: 120px;
-    background-color: #1a1a1a;
-    border-radius: 20px;
-    margin: 10px;
+  .loading {
+    flex: 1;
     align-items: center;
     justify-content: center;
-    flex-direction: column;
   }
-  .menu-icon {
-    font-size: 32px;
-  }
-  .menu-text {
-    font-size: 22px;
-    color: #ffffff;
-    margin-top: 8px;
-  }
-  .recent {
-    width: 420px;
-    margin-top: 30px;
-  }
-  .section-title {
-    font-size: 22px;
+  .loading-text {
+    font-size: 18px;
     color: #888888;
-    margin-bottom: 10px;
+  }
+  .list {
+    flex-direction: column;
+    flex: 1;
+    padding-left: 12px;
+    padding-right: 12px;
   }
   .song-item {
     flex-direction: row;
     align-items: center;
-    padding: 16px 12px;
+    padding: 14px 10px;
     background-color: #1a1a1a;
-    border-radius: 12px;
-    margin-bottom: 8px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .song-idx {
+    width: 28px;
+    font-size: 14px;
+    color: #555555;
+    text-align: center;
   }
   .song-info {
-    flex-direction: column;
     flex: 1;
+    flex-direction: column;
+    margin-left: 8px;
   }
   .song-name {
-    font-size: 22px;
+    font-size: 18px;
     color: #ffffff;
   }
   .song-artist {
-    font-size: 18px;
+    font-size: 14px;
     color: #888888;
-    margin-top: 4px;
-  }
-  .empty {
-    flex: 1;
-    align-items: center;
-    justify-content: center;
-  }
-  .empty-text {
-    font-size: 22px;
-    color: #555555;
+    margin-top: 3px;
   }
 </style>
 
 <script>
   import router from '@system.router'
-  import storage from '@system.storage'
+  import fetch from '@system.fetch'
 
   export default {
     data: {
-      recentList: []
+      songList: [],
+      loading: true
     },
     onInit() {
-      this.loadRecent()
+      this.loadHotSongs()
     },
-    onShow() {
-      this.loadRecent()
-    },
-    loadRecent() {
-      storage.get({
-        key: 'recent_play',
-        success: (data) => {
+    loadHotSongs() {
+      this.loading = true
+      const url = 'https://music.163.com/api/playlist/detail?id=3778678'
+      fetch.fetch({
+        url: url,
+        method: 'GET',
+        header: {
+          'Referer': 'https://music.163.com/',
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 13)'
+        },
+        success: (resp) => {
+          this.loading = false
           try {
-            this.recentList = JSON.parse(data || '[]').slice(0, 10)
-          } catch(e) {
-            this.recentList = []
+            const data = JSON.parse(resp.data)
+            if (data.result && data.result.tracks) {
+              this.songList = data.result.tracks.slice(0, 30).map(s => ({
+                id: s.id,
+                name: s.name,
+                artist: s.artists.map(a => a.name).join('/'),
+                album: s.album ? s.album.name : '',
+                duration: Math.floor(s.duration / 1000)
+              }))
+            }
+          } catch (e) {
+            this.songList = []
           }
         },
         fail: () => {
-          this.recentList = []
+          this.loading = false
+          this.songList = []
         }
       })
     },
-    gotoSearch() {
-      router.push({ uri: '/Search' })
-    },
-    gotoPlayer() {
-      router.push({ uri: '/Player' })
-    },
-    playFromRecent(idx) {
-      const song = this.recentList[idx]
+    playSong(evt) {
+      const idx = evt.index
+      const song = this.songList[idx]
+      if (!song) return
       router.push({
         uri: '/Player',
         params: {
